@@ -539,6 +539,35 @@ ParseConfiguration(char *line)
 	} else if (strcmp(p, "multiprocess") == 0) {
 		CONFIG.multi_process = 1;
 		SetMultiProcessSupport(line + strlen(p) + 1);
+
+	/* Netmap pipe hardware and IP addresses configurations */
+	} else if (strcmp(p, "hw_addr") == 0) {
+		int eidx;
+		unsigned char hw_addr[6];
+
+		eidx = CONFIG.eths_num - 1;
+		ParseMACAddress(hw_addr, q);
+
+		CONFIG.eths[eidx].haddr[0] = hw_addr[0];
+		CONFIG.eths[eidx].haddr[1] = hw_addr[1];
+		CONFIG.eths[eidx].haddr[2] = hw_addr[2];
+		CONFIG.eths[eidx].haddr[3] = hw_addr[3];
+		CONFIG.eths[eidx].haddr[4] = hw_addr[4];
+		CONFIG.eths[eidx].haddr[5] = hw_addr[5];
+	} else if (strcmp(p, "ip_addr") == 0) {
+		int eidx;
+		uint32_t ip_addr;
+
+		eidx = CONFIG.eths_num - 1;
+		ParseIPAddress(&ip_addr, q);
+		CONFIG.eths[eidx].ip_addr =  ip_addr;
+	} else if (strcmp(p, "netmask") == 0) {
+		int eidx;
+		uint32_t netmask;
+
+		eidx = CONFIG.eths_num - 1;
+		ParseIPAddress(&netmask, q);
+		CONFIG.eths[eidx].netmask =  netmask;
 	} else {
 		TRACE_CONFIG("Unknown option type: %s\n", line);
 		return -1;

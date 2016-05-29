@@ -37,6 +37,7 @@ netmap_init_handle(struct mtcp_thread_context *ctxt)
 	char ifname[MAX_IFNAMELEN];
 	char nifname[MAX_IFNAMELEN];
 	int j;
+	int eidx = 0;
 
 	/* create and initialize private I/O module context */
 	ctxt->io_private_context = calloc(1, sizeof(struct netmap_private_context));
@@ -52,14 +53,12 @@ netmap_init_handle(struct mtcp_thread_context *ctxt)
 
 	/* initialize per-thread netmap interfaces  */
 	for (j = 0; j < num_devices_attached; j++) {
-		if (if_indextoname(devices_attached[j], ifname) == NULL) {
-			TRACE_ERROR("Failed to initialize interface %s with ifidx: %d - "
-				    "error string: %s\n",
-				    ifname, devices_attached[j], strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-		
-		if (unlikely(CONFIG.num_cores == 1))
+		eidx = devices_attached[j];
+		strcpy(ifname, CONFIG.eths[eidx].dev_name);
+
+		if (strstr(ifname, "vale") != NULL)
+			strcpy(nifname, ifname);
+		else if (unlikely(CONFIG.num_cores == 1))
 			sprintf(nifname, "netmap:%s", ifname);
 		else
 			sprintf(nifname, "netmap:%s-%d", ifname, ctxt->cpu);
