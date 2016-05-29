@@ -15,7 +15,8 @@
 /* for poll */
 #include <sys/poll.h>
 /*----------------------------------------------------------------------------*/
-#define MAX_PKT_BURST			64
+#define MAX_RX_PKT_BURST		64
+#define MAX_TX_PKT_BURST		4
 #define ETHERNET_FRAME_SIZE		1514
 #define MAX_IFNAMELEN			(IF_NAMESIZE + 10)
 #define EXTRA_BUFS			512
@@ -23,10 +24,11 @@
 
 struct netmap_private_context {
 	struct nm_desc *local_nmd[MAX_DEVICES];
-	unsigned char snd_pktbuf[MAX_DEVICES][ETHERNET_FRAME_SIZE];
-	unsigned char *rcv_pktbuf[MAX_PKT_BURST];
-	uint16_t rcv_pkt_len[MAX_PKT_BURST];
-	uint16_t snd_pkt_size[MAX_DEVICES];
+	unsigned char snd_pktbuf[MAX_DEVICES][MAX_TX_PKT_BURST][ETHERNET_FRAME_SIZE];
+	unsigned char *rcv_pktbuf[MAX_RX_PKT_BURST];
+	uint16_t rcv_pkt_len[MAX_RX_PKT_BURST];
+	uint16_t snd_pkt_size[MAX_DEVICES][MAX_TX_PKT_BURST];
+	uint8_t to_send[MAX_DEVICES];
 	uint8_t dev_poll_flag;
 } __attribute__((aligned(__WORDSIZE)));
 /*----------------------------------------------------------------------------*/
@@ -98,37 +100,39 @@ netmap_release_pkt(struct mtcp_thread_context *ctxt, int ifidx, unsigned char *p
 int
 netmap_send_pkts(struct mtcp_thread_context *ctxt, int nif)
 {
-	int pkt_size, idx;
+	int cnt, idx;
 	struct netmap_private_context *npc;
 	mtcp_manager_t mtcp;
 
 	npc = (struct netmap_private_context *)ctxt->io_private_context;
 	idx = nif;
-	pkt_size = npc->snd_pkt_size[idx];
 	mtcp = ctxt->mtcp_manager;
 
 	/* assert-type statement */
-	if (pkt_size == 0) return 0;
+	if (npc->to_send[idx] == 0) return 0;
 
+	for (cnt = 0; cnt < npc->to_send[idx]; cnt++) {
 #ifdef NETSTAT
-	mtcp->nstat.tx_packets[nif]++;
-	mtcp->nstat.tx_bytes[nif] += pkt_size + 24;
+		mtcp->nstat.tx_packets[nif]++;
+		mtcp->nstat.tx_bytes[nif] += npc->snd_pkt_size[idx][cnt] + 24;
 #endif
-	
- tx_again:
-	if (nm_inject(npc->local_nmd[idx], npc->snd_pktbuf[idx], pkt_size) == 0) {
-		TRACE_DBG("Failed to send pkt of size %d on interface: %d\n",
-			  pkt_size, idx);
+
+		if (nm_inject(npc->local_nmd[idx], npc->snd_pktbuf[idx][cnt],
+			npc->snd_pkt_size[idx][cnt]) == 0) {
+			TRACE_DBG("Failed to send pkt of size %d on interface: %d\n",
+				  npc->snd_pkt_size[idx][cnt], idx);
 #ifdef NETSTAT
-		mtcp->nstat.rx_errors[idx]++;
+			mtcp->nstat.rx_errors[idx]++;
 #endif
-		ioctl(npc->local_nmd[idx]->fd, NIOCTXSYNC, NULL);
-		//goto tx_again;
+			ioctl(npc->local_nmd[idx]->fd, NIOCTXSYNC, NULL);
+		}
+
+		npc->snd_pkt_size[idx][cnt] = 0;
 	}
 
-	npc->snd_pkt_size[idx] = 0;
+	npc->to_send[idx] = 0;
 
-	return 1;
+	return cnt;
 }
 /*----------------------------------------------------------------------------*/
 uint8_t *
@@ -136,14 +140,16 @@ netmap_get_wptr(struct mtcp_thread_context *ctxt, int nif, uint16_t pktsize)
 {
 	struct netmap_private_context *npc;
 	int idx = nif;
+	uint8_t cnt;
 
 	npc = (struct netmap_private_context *)ctxt->io_private_context;
-	if (npc->snd_pkt_size[idx] != 0)
+	if (npc->to_send[idx] == MAX_TX_PKT_BURST)
 		netmap_send_pkts(ctxt, nif);
 
-	npc->snd_pkt_size[idx] = pktsize;
-	
-	return (uint8_t *)npc->snd_pktbuf[idx];
+	cnt = npc->to_send[idx]++;
+	npc->snd_pkt_size[idx][cnt] = pktsize;
+
+	return (uint8_t *)npc->snd_pktbuf[idx][cnt];
 }
 /*----------------------------------------------------------------------------*/
 int32_t
@@ -157,7 +163,7 @@ netmap_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 	int p = 0;
 	int c, got = 0, ri = d->cur_rx_ring;
 	int n = d->last_rx_ring - d->first_rx_ring + 1;
-	int cnt = MAX_PKT_BURST;
+	int cnt = MAX_RX_PKT_BURST;
 
 
 
