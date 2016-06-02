@@ -37,6 +37,17 @@ GetIntValue(char* value)
 	return ret;
 }
 /*----------------------------------------------------------------------------*/
+int
+SetProcessCpu(int cpu)
+{
+	if (cpu > MAX_CPUS)
+		return -1;
+
+	process_cpu = cpu;
+
+	return 0;
+}
+/*----------------------------------------------------------------------------*/
 inline uint32_t 
 MaskFromPrefix(int prefix)
 {

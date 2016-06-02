@@ -4,11 +4,15 @@
 #include "ps.h"
 
 int num_cpus;
+int process_cpu;
 int num_queues;
 int num_devices;
 
 int num_devices_attached;
 int devices_attached[MAX_DEVICES];
+
+int
+SetProcessCpu(int cpu);
 
 int 
 LoadConfiguration(char *fname);

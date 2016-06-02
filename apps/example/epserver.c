@@ -85,6 +85,7 @@ struct thread_context
 /*----------------------------------------------------------------------------*/
 static int num_cores;
 static int core_limit;
+static int process_cpu = 0;
 static pthread_t app_thread[MAX_CPUS];
 static int done[MAX_CPUS];
 static char *conf_file = NULL;
@@ -521,7 +522,7 @@ SignalHandler(int signum)
 {
 	int i;
 
-	for (i = 0; i < core_limit; i++) {
+	for (i = process_cpu; i < core_limit + process_cpu; i++) {
 		if (app_thread[i] == pthread_self()) {
 			//TRACE_INFO("Server thread %d got SIGINT\n", i);
 			done[i] = TRUE;
@@ -552,12 +553,10 @@ main(int argc, char **argv)
 	uint64_t total_read;
 	struct mtcp_conf mcfg;
 	int cores[MAX_CPUS];
-	int process_cpu;
 	int i, o;
 
 	num_cores = GetNumCPUs();
 	core_limit = num_cores;
-	process_cpu = -1;
 	dir = NULL;
 
 	if (argc < 2) {
@@ -598,7 +597,7 @@ main(int argc, char **argv)
 			break;
 		case 'c':
 			process_cpu = atoi(optarg);
-			if (process_cpu > core_limit) {
+			if (process_cpu > MAX_CPUS) {
 				TRACE_CONFIG("Starting CPU is way off limits!\n");
 				return FALSE;
 			}
@@ -613,6 +612,9 @@ main(int argc, char **argv)
 		TRACE_CONFIG("You did not pass a valid www_path!\n");
 		exit(EXIT_FAILURE);
 	}
+
+	if (mtcp_process_cpu(process_cpu) < 0)
+		return FALSE;
 
 	nfiles = 0;
 	while ((ent = readdir(dir)) != NULL) {
@@ -683,7 +685,7 @@ main(int argc, char **argv)
 
 	TRACE_INFO("Application initialization finished.\n");
 
-	for (i = ((process_cpu == -1) ? 0 : process_cpu); i < core_limit; i++) {
+	for (i = process_cpu; i < core_limit + process_cpu; i++) {
 		cores[i] = i;
 		done[i] = FALSE;
 		
@@ -693,15 +695,10 @@ main(int argc, char **argv)
 			TRACE_CONFIG("Failed to create server thread.\n");
 				exit(EXIT_FAILURE);
 		}
-		if (process_cpu != -1)
-			break;
 	}
 	
-	for (i = ((process_cpu == -1) ? 0 : process_cpu); i < core_limit; i++) {
+	for (i = process_cpu; i < core_limit + process_cpu; i++) {
 		pthread_join(app_thread[i], NULL);
-
-		if (process_cpu != -1)
-			break;
 	}
 	
 	mtcp_destroy();

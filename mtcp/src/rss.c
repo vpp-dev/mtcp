@@ -88,8 +88,8 @@ GetRSSHash(in_addr_t sip, in_addr_t dip, in_port_t sp, in_port_t dp)
 /* qid = val % num_queues */
 /*-------------------------------------------------------------------*/ 
 int
-GetRSSCPUCore(in_addr_t sip, in_addr_t dip, 
-	      in_port_t sp, in_port_t dp, int num_queues, uint8_t endian_check)
+GetRSSCPUCore(in_addr_t sip, in_addr_t dip, in_port_t sp, in_port_t dp,
+		int num_queues, int skip_core, uint8_t endian_check)
 {
 	#define RSS_BIT_MASK 0x0000007F
 	uint32_t masked = GetRSSHash(sip, dip, sp, dp) & RSS_BIT_MASK;
@@ -99,6 +99,6 @@ GetRSSCPUCore(in_addr_t sip, in_addr_t dip,
 		masked += off[masked & 0x3];
 	}
 
-	return (masked % num_queues);
+	return skip_core + (masked % num_queues);
 }
 /*-------------------------------------------------------------------*/ 

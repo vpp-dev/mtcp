@@ -62,6 +62,7 @@ static int done[MAX_CPUS];
 /*----------------------------------------------------------------------------*/
 static int num_cores;
 static int core_limit;
+static int process_cpu = 0;
 /*----------------------------------------------------------------------------*/
 static int fio = FALSE;
 static char outfile[MAX_FILE_LEN + 1];
@@ -474,7 +475,7 @@ PrintStats()
 	uint64_t total_resp_time = 0;
 	int i;
 
-	for (i = 0; i < core_limit; i++) {
+	for (i = process_cpu; i < core_limit + process_cpu; i++) {
 		st = g_stat[i];
 		avg_resp_time = st->completes? st->sum_resp_time / st->completes : 0;
 #if 0
@@ -595,7 +596,7 @@ RunWgetMain(void *arg)
 		cur_ts = TIMEVAL_TO_USEC(cur_tv);
 
 		/* print statistics every second */
-		if (core == 0 && cur_tv.tv_sec > prev_tv.tv_sec) {
+		if (cur_tv.tv_sec > prev_tv.tv_sec) {
 			PrintStats();
 			prev_tv = cur_tv;
 		}
@@ -678,7 +679,7 @@ SignalHandler(int signum)
 {
 	int i;
 
-	for (i = 0; i < core_limit; i++) {
+	for (i = process_cpu; i < core_limit + process_cpu; i++) {
 		done[i] = TRUE;
 	}
 }
@@ -746,7 +747,10 @@ main(int argc, char **argv)
 		} else if (strcmp(argv[i], "-c") == 0) {
 			total_concurrency = atoi(argv[i + 1]);
 
-		} else if (strcmp(argv[i], "-o") == 0) {
+		} else if (strcmp(argv[i], "-s") == 0) {
+                        process_cpu = atoi(argv[i + 1]);
+
+                } else if (strcmp(argv[i], "-o") == 0) {
 			if (strlen(argv[i + 1]) > MAX_FILE_LEN) {
 				TRACE_CONFIG("Output file length should be smaller than %d!\n", 
 						MAX_FILE_LEN);
@@ -756,6 +760,9 @@ main(int argc, char **argv)
 			strncpy(outfile, argv[i + 1], MAX_FILE_LEN);
 		}
 	}
+
+	if (mtcp_process_cpu(process_cpu) < 0 )
+		return FALSE;
 
 	if (total_flows < core_limit) {
 		core_limit = total_flows;
@@ -791,7 +798,7 @@ main(int argc, char **argv)
 
 	flow_per_thread = total_flows / core_limit;
 	flow_remainder_cnt = total_flows % core_limit;
-	for (i = 0; i < core_limit; i++) {
+	for (i = process_cpu; i < core_limit + process_cpu; i++) {
 		cores[i] = i;
 		done[i] = FALSE;
 		flows[i] = flow_per_thread;
@@ -810,7 +817,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	for (i = 0; i < core_limit; i++) {
+	for (i = process_cpu; i < core_limit + process_cpu; i++) {
 		pthread_join(app_thread[i], NULL);
 		TRACE_INFO("Wget thread %d joined.\n", i);
 	}

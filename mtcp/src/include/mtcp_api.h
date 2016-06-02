@@ -48,6 +48,9 @@ mtcp_init(char *config_file);
 void 
 mtcp_destroy();
 
+int
+mtcp_process_cpu(int cpu);
+
 int 
 mtcp_getconf(struct mtcp_conf *conf);
 

@@ -46,7 +46,7 @@ GetMTCPManager(mctx_t mctx)
 		return NULL;
 	}
 
-	if (mctx->cpu < 0 || mctx->cpu >= num_cpus) {
+	if (mctx->cpu < 0 || mctx->cpu > MAX_CPUS) {
 		errno = EINVAL;
 		return NULL;
 	}
@@ -600,7 +600,7 @@ mtcp_connect(mctx_t mctx, int sockid,
 			0 : 1;
 		
 		rss_core = GetRSSCPUCore(socket->saddr.sin_addr.s_addr, dip, 
-					 socket->saddr.sin_port, dport, num_queues, endian_check);
+					 socket->saddr.sin_port, dport, num_queues, mctx->cpu, endian_check);
 		
 		if (rss_core != mctx->cpu) {
 			errno = EINVAL;

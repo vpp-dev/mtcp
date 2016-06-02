@@ -71,6 +71,13 @@ static struct timespec sigint_ts[MAX_CPUS];
 /*----------------------------------------------------------------------------*/
 static int mtcp_master = -1;
 /*----------------------------------------------------------------------------*/
+int
+mtcp_process_cpu(int cpu)
+{
+	return SetProcessCpu(cpu);
+}
+
+/*----------------------------------------------------------------------------*/
 void
 HandleSignal(int signal)
 {
@@ -259,7 +266,7 @@ PrintNetworkStats(mtcp_manager_t mtcp, uint32_t cur_ts)
 	mtcp->p_nstat_ts = cur_ts;
 	gflow_cnt = 0;
 	memset(&g_nstat, 0, sizeof(struct net_stat));
-	for (i = 0; i < CONFIG.num_cores; i++) {
+	for (i = process_cpu; i < CONFIG.num_cores + process_cpu; i++) {
 		if (running[i]) {
 			PrintThreadNetworkStats(g_mtcp[i], &ns);
 #if NETSTAT_TOTAL
@@ -290,7 +297,7 @@ PrintNetworkStats(mtcp_manager_t mtcp, uint32_t cur_ts)
 
 #if ROUND_STAT
 	memset(&g_runstat, 0, sizeof(struct run_stat));
-	for (i = 0; i < CONFIG.num_cores; i++) {
+	for (i = process_cpu; i < CONFIG.num_cores + process_cpu; i++) {
 		if (running[i]) {
 			PrintThreadRoundStats(g_mtcp[i], &rs);
 #if 0
@@ -317,7 +324,7 @@ PrintNetworkStats(mtcp_manager_t mtcp, uint32_t cur_ts)
 #endif /* ROUND_STAT */
 
 #if EVENT_STAT
-	for (i = 0; i < CONFIG.num_cores; i++) {
+	for (i = process_cpu; i < CONFIG.num_cores + process_cpu; i++) {
 		if (running[i] && g_mtcp[i]->ep) {
 			PrintEventStat(i, &g_mtcp[i]->ep->stat);
 		}
@@ -1103,10 +1110,10 @@ mtcp_create_context(int cpu)
 	mctx_t mctx;
 	int ret;
 
-	if (cpu >=  CONFIG.num_cores) {
+	if (cpu >=  MAX_CPUS) {
 		TRACE_ERROR("Failed initialize new mtcp context. "
 					"Requested cpu id %d exceed the number of cores %d configured to use.\n",
-					cpu, CONFIG.num_cores);
+					cpu, MAX_CPUS);
 		return NULL;
 	}
 
@@ -1388,7 +1395,7 @@ mtcp_init(char *config_file)
 		exit(EXIT_FAILURE);
 	}
 	
-	for (i = 0; i < num_cpus; i++) {
+	for (i = process_cpu; i < num_cpus + process_cpu; i++) {
 		g_mtcp[i] = NULL;
 		running[i] = FALSE;
 		sigint_cnt[i] = 0;
@@ -1442,7 +1449,7 @@ mtcp_destroy()
 	int i;
 
 	/* wait until all threads are closed */
-	for (i = 0; i < num_cpus; i++) {
+	for (i = process_cpu; i < num_cpus + process_cpu; i++) {
 		if (running[i]) {
 			pthread_join(g_thread[i], NULL);
 		}

@@ -164,7 +164,7 @@ CreateAddressPoolPerCore(int core, int num_queues,
 				break;
 
 			sport_h = j;
-			rss_core = GetRSSCPUCore(daddr_h, saddr_h, dport_h, sport_h, num_queues, endian_check);
+			rss_core = GetRSSCPUCore(daddr_h, saddr_h, dport_h, sport_h, num_queues, core, endian_check);
 			if (rss_core != core)
 				continue;
 
@@ -245,7 +245,7 @@ FetchAddress(addr_pool_t ap, int core, int num_queues,
 
 		rss_core = GetRSSCPUCore(ntohl(walk->addr.sin_addr.s_addr), 
 					 ntohl(daddr->sin_addr.s_addr), ntohs(walk->addr.sin_port), 
-					 ntohs(daddr->sin_port), num_queues, endian_check);
+					 ntohs(daddr->sin_port), num_queues,  core, endian_check);
 
 		if (core == rss_core)
 			break;
