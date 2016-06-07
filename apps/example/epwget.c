@@ -727,7 +727,7 @@ main(int argc, char **argv)
 
 	num_cores = GetNumCPUs();
 	core_limit = num_cores;
-	concurrency = 100;
+	concurrency = 1000;
 	for (i = 3; i < argc - 1; i++) {
 		if (strcmp(argv[i], "-N") == 0) {
 			core_limit = atoi(argv[i + 1]);
@@ -771,6 +771,8 @@ main(int argc, char **argv)
 	/* per-core concurrency = total_concurrency / # cores */
 	if (total_concurrency > 0)
 		concurrency = total_concurrency / core_limit;
+	else
+		total_concurrency = concurrency;
 
 	/* set the max number of fds 3x larger than concurrency */
 	max_fds = concurrency * 3;
