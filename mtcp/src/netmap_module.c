@@ -15,8 +15,8 @@
 /* for poll */
 #include <sys/poll.h>
 /*----------------------------------------------------------------------------*/
-#define MAX_RX_PKT_BURST		64
-#define MAX_TX_PKT_BURST		4
+#define MAX_RX_PKT_BURST		128
+#define MAX_TX_PKT_BURST		8
 #define ETHERNET_FRAME_SIZE		1514
 #define MAX_IFNAMELEN			(IF_NAMESIZE + 10)
 #define EXTRA_BUFS			512
