@@ -32,7 +32,7 @@
 #define ERROR (-1)
 #endif
 
-#define MAX_CPUS 16
+#define MAX_CPUS 256
 
 #define ETHERNET_HEADER_LEN		14	// sizeof(struct ethhdr)
 #define IP_HEADER_LEN			20	// sizeof(struct iphdr)
